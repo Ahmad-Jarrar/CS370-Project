@@ -27,15 +27,25 @@ test_env = gym.make('stocks-v0',
             frame_bound = (1800, 2335))
 
 
-model = A2C('MlpPolicy', env,verbose=1, policy_kwargs = dict(net_arch=[64, 'lstm', dict(vf=[128, 128, 128], pi=[64, 64])])).learn(2000)
+model = A2C('MlpPolicy', env,verbose=1).learn(2000)
 
+# Calculating mean and buying or selling according to that
 t_obs = test_env.reset()
 print("> max_possible_profit(test):", test_env.max_possible_profit())
 while True:
     try:
-        a = model.predict(t_obs)
-        t_obs, t_reward, t_done, info = test_env.step(a[0])
+        mean = np.mean(t_obs[:, 0])
+        print(t_obs)
+        print(mean)
         
+        if t_obs[-1][0] > mean:
+            a = 0
+        else:
+            a = 1
+        
+        # a = model.predict(t_obs)
+        t_obs, t_reward, t_done, info = test_env.step(a)
+
     except Exception as e:
         print(e)
         t_obs, t_reward, t_done, _ = test_env.step(test_env.observation_space.sample)
@@ -46,3 +56,4 @@ while True:
         test_env.render_all()
         plt.show()
         break
+# %%
