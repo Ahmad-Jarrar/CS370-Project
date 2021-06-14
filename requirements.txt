@@ -1,3 +1,6 @@
 numpy
 pandas
 gym-anytrading
+pandas-datareader
+stable_baselines3
+tqdm
