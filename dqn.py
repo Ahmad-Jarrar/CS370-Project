@@ -1,4 +1,3 @@
-from collections import deque
 import random
 import numpy as np
 import math
@@ -13,91 +12,7 @@ import torch.nn.functional as F
 
 import matplotlib.pyplot as plt
 
-
-
-class Buffer:
-    def __init__(self, size, obs_dim = None, act_dim = None):
-        self.max_size = size
-        self.buffer = deque(maxlen=size)
-        self.size = 0
-
-    def push(self, state, action, reward, next_state, done):
-        experience = (state, action, np.array([reward]), next_state, done)
-        self.size = min(self.size+1,self.max_size)
-        self.buffer.append(experience)
-
-    def sample(self, batch_size):
-        state_batch = []
-        action_batch = []
-        reward_batch = []
-        next_state_batch = []
-        done_batch = []
-
-        batch = random.sample(self.buffer, batch_size)
-        # np.random.seed(0)
-        batch = np.random.randint(0, len(self.buffer), size=batch_size)
-        for experience in batch:
-            state, action, reward, next_state, done = self.buffer[experience]
-            state_batch.append(state)
-            action_batch.append(action)
-            reward_batch.append(reward)
-            next_state_batch.append(next_state)
-            done_batch.append(done)
-
-        return (state_batch, action_batch, reward_batch, next_state_batch, done_batch)
-
-
-class Q_NN(nn.Module):
-
-    def __init__(self, input_shape, hidden_shape, hidden_layers, output_shape, output_activation=None):
-        super(Q_NN, self).__init__()
-
-        self.input_shape = input_shape
-        self.hidden_shape = hidden_shape
-        self.hidden_layers = hidden_layers
-        self.output_shape = output_shape
-        self.output_activation = output_activation
-
-        self.input_layer = nn.Linear(input_shape, hidden_shape)
-
-        self.hidden = []
-
-        self.input_layer.weight.data.normal_(0,1)
-
-        for _ in range(hidden_layers):
-            self.hidden.append(nn.Linear(hidden_shape, hidden_shape))
-            self.hidden[-1].weight.data.normal_(0,1)
-
-        self.output_layer = nn.Linear(hidden_shape, output_shape)
-
-        self.output_layer.weight.data.normal_(0,1)
-
-    def forward(self, x):
-
-        y = self.input_layer(x)
-        y = torch.relu(y)
-
-        for h_layer in self.hidden:
-            y = h_layer(y)
-            y = torch.tanh(y)
-
-        y = self.output_layer(y)
-
-        if self.output_activation != None:
-            y = self.output_activation(y)
-
-        return y
-
-    def act(self, x):
-        obs = torch.tensor(x, dtype=torch.float32)
-
-        q_values = self(obs.unsqueeze(0))
-
-        max_q_idx = torch.argmax(q_values, dim=1)[0]
-        action = max_q_idx.detach().item()
-
-        return action
-
+from utils import *
 
 def select_action(policy_net, state, step, env):
     sample = random.random()
@@ -118,7 +33,7 @@ def evaluate_model(model, env):
         
         try:
             t_obs = np.reshape(t_obs, OBESERVATION_SPACE)
-            a = model.act(t_obs)
+            a = model.predict(t_obs)
             t_obs, t_reward, t_done, t_info = env.step(a)
 
             # env.render()
@@ -177,11 +92,11 @@ if __name__ == '__main__':
     buffer = Buffer(BUFFER_SIZE)
 
     # Main network
-    policy_net = Q_NN(OBESERVATION_SPACE, 500, 3, ACTION_SPACE)
+    policy_net = NN(OBESERVATION_SPACE, 500, 3, ACTION_SPACE)
 
 
     # Target network
-    target_policy_net = Q_NN(OBESERVATION_SPACE, 500, 3, ACTION_SPACE)
+    target_policy_net = NN(OBESERVATION_SPACE, 500, 3, ACTION_SPACE)
 
     # Loss function (Huber Loss)
     loss_fn = nn.SmoothL1Loss()
@@ -261,5 +176,6 @@ if __name__ == '__main__':
             print("Step: {}  Loss: {}  Avg Reward: {}".format(i, loss.item(), torch.mean(reward_batch).item()))
 
 
-
+    evaluate_model(policy_net, env)
+    evaluate_model(policy_net, test_env)
 
